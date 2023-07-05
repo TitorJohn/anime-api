@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/joho/godotenv"
 )
 
 func byAnime(w http.ResponseWriter, r *http.Request) {
@@ -19,6 +21,13 @@ func random(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	db()
+
 	http.HandleFunc("/anime", byAnime)
 	http.HandleFunc("/", random)
 
