@@ -26,8 +26,6 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	db()
-
 	http.HandleFunc("/anime", byAnime)
 	http.HandleFunc("/", random)
 
