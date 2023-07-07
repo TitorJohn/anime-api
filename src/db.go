@@ -9,6 +9,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+type Database struct {
+	db   *sql.DB
+	once sync.Once
+}
+
 type AnimeQuote struct {
 	ID        int    `json:"id"`
 	Name      string `json:"anime"`
@@ -16,54 +21,45 @@ type AnimeQuote struct {
 	Quote     string `json:"quote"`
 }
 
-var (
-	db   *sql.DB
-	once sync.Once
-)
-
-func GetDbInstance() (*sql.DB, error) {
+func NewDatabase() (*Database, error) {
 	filePath := os.Getenv("DB_PATH")
-
+	db := &Database{}
 	var err error
-	once.Do(func() {
-		db, err = sql.Open("sqlite3", filePath)
+	db.once.Do(func() {
+		db.db, err = sql.Open("sqlite3", filePath)
 		if err != nil {
 			fmt.Println("Error connecting to the database:", err)
 		}
 	})
 
 	createTableSQL := `
-	CREATE TABLE IF NOT EXISTS anime_quote (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name TEXT,
-		character TEXT,
-		quote TEXT
-	)`
-	_, err = db.Exec(createTableSQL)
+    CREATE TABLE IF NOT EXISTS anime_quote (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        character TEXT,
+        quote TEXT
+    )`
+	_, err = db.db.Exec(createTableSQL)
 	if err != nil {
 		fmt.Println("Error creating table:", err)
 	}
 
 	return db, err
-
 }
 
-func getQuotesByTitle(title string) ([]AnimeQuote, error) {
-	db, err := GetDbInstance()
-	if err != nil {
-		return []AnimeQuote{}, err
-	}
+func (d *Database) Close() error {
+	return d.db.Close()
+}
 
-	query := "SELECT id, name, character, quote FROM anime_quote where name=?"
-	rows, err := db.Query(query, title)
+func (d *Database) GetQuotesByTitle(title string) ([]AnimeQuote, error) {
+	query := "SELECT id, name, character, quote FROM anime_quote WHERE name LIKE '%' || ? || '%'"
+	rows, err := d.db.Query(query, title)
 	if err != nil {
 		return nil, err
 	}
-
 	defer rows.Close()
 
 	var quotes []AnimeQuote
-
 	for rows.Next() {
 		var quote AnimeQuote
 		err := rows.Scan(&quote.ID, &quote.Name, &quote.Character, &quote.Quote)
@@ -78,16 +74,10 @@ func getQuotesByTitle(title string) ([]AnimeQuote, error) {
 	}
 
 	return quotes, nil
-
 }
 
-func insertQuote(quote AnimeQuote) (int64, error) {
-	db, err := GetDbInstance()
-	if err != nil {
-		return 0, err
-	}
-
-	stmt, err := db.Prepare("INSERT INTO anime_quote (name, character, quote) VALUES (?, ?, ?)")
+func (d *Database) InsertQuote(quote AnimeQuote) (int64, error) {
+	stmt, err := d.db.Prepare("INSERT INTO anime_quote (name, character, quote) VALUES (?, ?, ?)")
 	if err != nil {
 		return 0, err
 	}

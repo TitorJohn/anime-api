@@ -12,7 +12,7 @@ func byAnime(w http.ResponseWriter, r *http.Request) {
 	queryParams := r.URL.Query()
 	search := queryParams.Get("s")
 
-	fmt.Printf("You are searching for this value: %s", search)
+	fmt.Printf("You are searching for this value: %s \n", search)
 	fmt.Fprint(w, quoteByTitle(search))
 }
 
